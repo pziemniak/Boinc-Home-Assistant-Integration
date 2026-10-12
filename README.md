@@ -13,16 +13,24 @@ Features:
 * Sensors for *total tasks*, *running tasks* and *average progress rate*
 * Control multiple BOINC servers (if you have multiple BOINC hosts on your network)
 
+> [!NOTE]
+> This repository is a fork of the original [SpuelMett/Boinc-Home-Assistant-Integration](https://github.com/SpuelMett/Boinc-Home-Assistant-Integration) by SpuelMett, restructured for full HACS support and extended telemetry.
+
 # Installation
 
-1. Configure Boinc to allow remote control. This typically includes editing ```remote_hosts.cfg``` and ```gui_rpc_auth.cfg``` and restarting BOINC.
-1. Copy the ```/spuelmett_boinc``` folder from this project into your Home Assistant's folder ```config/custom_components```.
-2. Restart Home Assistant
-3. Add integration "Boinc Control"
-4. Enter a name, the IP-adress (no port) and the password you have set in ```gui_rpc_auth.cfg```
-1. If the connection was successful you'll get a message about it. If it was unsuccessful, then do some network troubleshooting 
-2. Verify that the integration works. Go to Developer Tools -> Actions -> search for "boinc". Start and stop Boinc to see that BOINC is responding as expected.
-1. Create your automations of choice using the new BOINC control services available in your Home Assistant.
+### Option 1: Via HACS (Recommended)
+1. In Home Assistant, open **HACS** > **Integrations**.
+2. Click the three dots in the top right corner and select **Custom repositories**.
+3. Paste the repository URL: `https://github.com/pziemniak/Boinc-Home-Assistant-Integration` and select category **Integration**.
+4. Click **Add**, find **Boinc Control**, and click **Download**.
+5. Restart Home Assistant.
+
+### Option 2: Manual Installation
+1. Configure BOINC to allow remote control (edit `remote_hosts.cfg` and `gui_rpc_auth.cfg`, then restart BOINC).
+2. Copy the `custom_components/spuelmett_boinc` directory into your Home Assistant `<config>/custom_components/` directory.
+3. Restart Home Assistant.
+4. Go to **Settings** > **Devices & Services** > **Add Integration** > search for **Boinc Control**.
+5. Enter host name, IP address (no port), and the GUI RPC password.
 
 # Understanding the BOINC control services
 
@@ -117,6 +125,11 @@ This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboin
 
 # Changelog
 
+## 1.0.0
+* Restructured integration directory for native HACS compatibility (`custom_components/spuelmett_boinc`).
+* Added `hacs.json` configuration and automated HACS validation workflow.
+* Bumped versioning for automated HACS update tracking.
+
 ## 0.0.7
 * Added start and stop actions for GPU
 * Improved Soft Stop feature to Stop all non-running task immediately to avoid starting them for a few seconds
@@ -134,7 +147,6 @@ This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboin
 * Update deprecated stuff for Home Assistant 2025.6.0
 
 # Roadmap
-* Add more sensors (Let me know what you want and i could try to implement it)
+* Add RAC (Recent Average Credit) and project statistics sensors
 * Add Availability sensor to check if boinc is running and the remote access works
 * Document the GPU services
-* Add HACS support
