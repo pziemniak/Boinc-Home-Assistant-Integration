@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 
 from .coordinator import BoincCoordinator
@@ -31,24 +32,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # register update options callback
     entry.async_on_unload(entry.add_update_listener(async_update_options))
 
+    # setup coordinator
+    coordinator = BoincCoordinator(hass, entry, boinc)
+    await coordinator.async_config_entry_first_refresh()
+    entry.runtime_data = coordinator
+
     # Register Services that can be called from automations or scripts
     async def start_boinc(call: ServiceCall) -> None:
         await boinc.start_boinc()
+        await asyncio.sleep(2)
+        await coordinator.async_request_refresh()
 
     async def stop_boinc(call: ServiceCall) -> None:
         await boinc.stop_boinc()
+        await coordinator.async_request_refresh()
 
     async def soft_stop_boinc(call: ServiceCall) -> None:
         await boinc.soft_stop_boinc()
+        await coordinator.async_request_refresh()
 
     async def soft_stop_check(call: ServiceCall) -> None:
         await boinc.update()
+        await coordinator.async_request_refresh()
 
     async def start_gpu(call: ServiceCall) -> None:
         await boinc.start_gpu()
+        await asyncio.sleep(1)
+        await coordinator.async_request_refresh()
 
     async def stop_gpu(call: ServiceCall) -> None:
         await boinc.stop_gpu()
+        await coordinator.async_request_refresh()
 
     service_name_suffix = str(name).lower().replace("-", "_")
     hass.services.async_register(
@@ -67,8 +81,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.services.async_register(DOMAIN, "stop_gpu_" + service_name_suffix, stop_gpu)
 
     # Add Event listener to trigger soft stop every minute
-    async def update_check(hass: HomeAssistant):
-        await boinc.update()
+    async def update_check(now):
+        if boinc.soft_stop_state:
+            await boinc.update()
+            await coordinator.async_request_refresh()
 
     remove_listener = async_track_time_interval(
         hass, update_check, timedelta(minutes=1), cancel_on_shutdown=True
@@ -77,10 +93,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     listener_name = LISTENER + str(name)
     hass.data[DOMAIN][listener_name] = remove_listener
 
-    # setup sensor stuff
-    coordinator = BoincCoordinator(hass, entry, boinc)
-    await coordinator.async_config_entry_first_refresh()
-    entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True

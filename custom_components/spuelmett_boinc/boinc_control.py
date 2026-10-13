@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 
 from .pyboinc.pyboinc import init_rpc_client
@@ -14,6 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 class BoincControl:
     def __init__(self, host: str, password: str, checkpoint_time: int) -> None:
         self.current_soft_stop_state = False
+        self.soft_stop_start_time: datetime | None = None
         self.host = host
         self.password = password
         self.checkpoint_time = checkpoint_time
@@ -36,16 +37,19 @@ class BoincControl:
     async def start_boinc(self):
         await self.connect()
         self.current_soft_stop_state = False
+        self.soft_stop_start_time = None
         await self.resume_all_task()
         await self.rpc_client.set_run_mode(Mode.AUTO, 0)
 
     async def stop_boinc(self):
         await self.connect()
         self.current_soft_stop_state = False
+        self.soft_stop_start_time = None
         await self.rpc_client.set_run_mode(Mode.NEVER, 0)
 
     async def soft_stop_boinc(self):
         self.current_soft_stop_state = True
+        self.soft_stop_start_time = datetime.now()
         await self.update()
 
     async def start_gpu(self):
@@ -63,38 +67,64 @@ class BoincControl:
         if self.current_soft_stop_state is False:
             return
 
+        # Check for max soft-stop timeout (10 minutes or 3 * checkpoint_time, whichever is larger)
+        max_soft_stop_timeout = max(
+            timedelta(seconds=self.checkpoint_time * 3), timedelta(minutes=10)
+        )
+        timed_out = (
+            self.soft_stop_start_time is not None
+            and (datetime.now() - self.soft_stop_start_time) > max_soft_stop_timeout
+        )
+        if timed_out:
+            _LOGGER.info(
+                "Soft stop timeout reached (%s); suspending remaining active tasks",
+                max_soft_stop_timeout,
+            )
+
         one_task_running = False  # Default
 
         results = await self.rpc_client.get_results()
+        if results == "\n" or not isinstance(results, list):
+            await self.rpc_client.set_run_mode(Mode.NEVER, 0)
+            self.current_soft_stop_state = False
+            self.soft_stop_start_time = None
+            return
+
         for result in results:
-            # check if the result is an active task
             if "active_task" in result:
                 active_task = result["active_task"]
-                checkpoint_cpu_time = active_task["checkpoint_cpu_time"]
-                current_cpu_time = active_task["current_cpu_time"]
-                project_url = result["project_url"]
-                name = result["name"]
+                checkpoint_cpu_time = active_task.get(
+                    "checkpoint_cpu_time", timedelta()
+                )
+                current_cpu_time = active_task.get(
+                    "current_cpu_time", timedelta()
+                )
+                project_url = result.get("project_url", "")
+                name = result.get("name", "")
+                task_state = active_task.get("active_task_state")
 
-                # Pause waiting tasks immediately
-                task_state = active_task["active_task_state"]
-                if task_state == 0:
-                    # resume waiting
-                    await self.rpc_client.suspend_result(project_url, name)
+                # If task is not actively executing (e.g. 0 waiting, 9 suspended),
+                # suspend waiting tasks immediately and never count them as running.
+                if task_state != 1:
+                    if task_state == 0:
+                        await self.rpc_client.suspend_result(project_url, name)
                     continue
 
-                # Check if last checkpoint was longer ago than the configured value
-                if current_cpu_time - checkpoint_cpu_time < timedelta(
-                    seconds=self.checkpoint_time
+                # For executing tasks (task_state == 1):
+                # Suspend if checkpoint is recent OR if timeout has expired
+                if timed_out or (
+                    current_cpu_time - checkpoint_cpu_time
+                    < timedelta(seconds=self.checkpoint_time)
                 ):
-                    # Suspend task
                     await self.rpc_client.suspend_result(project_url, name)
                 else:
                     one_task_running = True
 
-        # if all task are suspended set run mode to suspend
+        # if all tasks are suspended set run mode to NEVER
         if one_task_running is False:
             await self.rpc_client.set_run_mode(Mode.NEVER, 0)
             self.current_soft_stop_state = False
+            self.soft_stop_start_time = None
 
     async def resume_all_task(self):
         results = await self.rpc_client.get_results()

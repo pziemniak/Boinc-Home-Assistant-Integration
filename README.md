@@ -34,31 +34,31 @@ Sets the run mode of your remote BOINC machine to "run based on preferences".
 
 You start BOINC by calling the service ```spuelmett_boinc.start_boinc_<hostname>```.
 
-## Stop BOINC
-Sets the run mode of your remote BOINC machine to "never". This will stop any running task immediately (wasting some energy), a.k.a a hard stop.
+## Stop BOINC (Hard stop)
+Sets the run mode of your remote BOINC machine to "never". This stops all running tasks immediately without waiting for checkpoints, and cancels any pending soft stop.
 
-You stop BOINC by calling the service ```spuelmett_boinc.stop_boinc_<hostname>```.
+You can trigger a hard stop by:
+* Pressing the native **Stop immediately** button (`button.<instance>_stop_immediately`), or
+* Calling the service ```spuelmett_boinc.stop_boinc_<hostname>```.
 
 ## Soft stop BOINC
 When different BOINC projects run, they will on a regular basis perform a *checkpoint*. A checkpoint is used to secure the data already computed. When the client is stopped, all compute done after a checkpoint will be lost, having to be re-computed next time BOINC resumes. The frequency of checkpoints varies by project and task. 
 
 This integration implements a _soft stop_ by waiting until next checkpoint (a simplified description, see next chapter for details).
 
-You soft stop BOINC by calling the service ```spuelmett_boinc.soft_stop_boinc_<hostname>```.
+You soft stop BOINC by:
+* Toggling the native **Computations** switch to off (`switch.<instance>_computations`), or
+* Calling the service ```spuelmett_boinc.soft_stop_boinc_<hostname>```.
 
-Once checkpoint has been reached, the run mode of of your remote BOINC machine is set to "never".
+Once checkpoints have been reached across all tasks, the run mode of your remote BOINC machine is set to "never".
 
 ### Optimizing soft stop
-Since each BOINC project and task differs in how often checkpoints are made, there can be scenarios where you'd like to optimize the soft stop. To do so, you need to understand how the soft stop works in this integration.
+Since each BOINC project and task differs in how often checkpoints are made, there can be scenarios where you'd like to optimize the soft stop. To do so, you need to understand how the soft stop works in this integration:
 
-The when calling the soft stop, the integration will check when the last checkpoint was made:
-
-* If the last checkpoint was made less than 120 seconds ago, then the integration will request the host to stop computations. This means that a maximum of 120 seconds of computations will be lost. The 120 seconds are the default when you setup this integration. You can change it afterwards in the options of the integration.
-* If the last checkpoint was made longer than 120 minutes ago, the integration will not stop the processing (meaning the calculations continue running), and wait 60 seconds before checking again when the last checkpoint was made.
-
-If you know the checkpoint interval of your BOINC task, changing this option may help you to stop task earlier or run them longer. For example if a task only creates checkpoint every hour you may want to stop it even 5 Minutes after the last checkpoint so it doesnt run another 55 minutes.
-
-If you would not like to rely on the automatic check of checkpoints (every 60 seconds), but would like to control when it's done, you can do so by calling the service ```spuelmett_boinc.soft_stop_boinc_<hostname>```.
+* If the last checkpoint was made less than 120 seconds ago, the integration requests the host to suspend the task immediately (limiting computation loss to < 120 seconds). The 120 seconds is configurable in integration Options (`checkpoint_time`).
+* If the last checkpoint was made longer ago, the integration leaves the task running and waits for the next checkpoint to be recorded (checked every 60 seconds).
+* **Safety Timeout:** To prevent tasks with very long or broken checkpoint intervals from running indefinitely, the integration enforces a safety timeout (10 minutes or 3× `checkpoint_time`). If a task has not checkpointed within this timeout, it is suspended automatically.
+* If you need to halt computations immediately while a soft stop is in progress, trigger a **Hard stop** (`button.<instance>_stop_immediately`).
 
 # Example configurations
 
@@ -113,8 +113,9 @@ This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboin
 
 ## 0.0.9
 * Added native `switch` entities for BOINC Computations (Start / Soft Stop) and GPU (Start / Stop).
-* Added native `button` entity for Immediate / Hard Stop.
-* Added soft-stop status tracking and automatically reset soft-stop state once all tasks are suspended or hard-stopped.
+* Added native `button` entity for Immediate / Hard Stop (`button.<instance>_stop_immediately`).
+* Added automatic coordinator refresh to all services and switches for instant UI state updates.
+* Improved Soft Stop: verify executing task state (`active_task_state == 1`), reset soft-stop state when tasks are halted or hard-stopped, and added safety timeout protection.
 
 ## 0.0.8
 * Added `Total RAC` sensor (`credits/day`) reflecting host-wide recent credit gain rate.
