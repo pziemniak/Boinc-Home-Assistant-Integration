@@ -19,5 +19,24 @@
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
     }
+  },
+  "entity": {
+    "sensor": {
+      "task_running": {
+        "name": "Running tasks"
+      },
+      "task_total": {
+        "name": "Total tasks"
+      },
+      "average_progress_rate": {
+        "name": "Average progress rate"
+      },
+      "total_rac": {
+        "name": "Total RAC"
+      },
+      "total_credit": {
+        "name": "Total credit"
+      }
+    }
   }
 }

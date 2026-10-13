@@ -10,8 +10,9 @@ Features:
 * Start BOINC service
 * Hard and soft stop
 * Control the usage of GPU separately (if desired)
-* Sensors for *total tasks*, *running tasks* and *average progress rate*
-* Control multiple BOINC servers (if you have multiple BOINC hosts on your network)
+* Sensors for *total tasks*, *running tasks*, *average progress rate*, *Total RAC* (credits/day) and *Total Credit* (with native LTS hourly/daily/weekly tracking)
+* Per-project credit and RAC breakdown available in sensor attributes
+* Control multiple BOINC servers (grouped into dedicated Home Assistant devices)
 
 # Installation
 
@@ -117,6 +118,15 @@ This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboin
 
 # Changelog
 
+## 0.0.8
+* Added `Total RAC` sensor (`credits/day`) reflecting host-wide recent credit gain rate.
+* Added `Total Credit` sensor with `total_increasing` state class for native Home Assistant Long-Term Statistics (LTS) hourly, daily, and weekly tracking.
+* Added per-project telemetry breakdown in sensor attributes (`projects` dictionary with individual RAC and credit values).
+* Added Home Assistant Device Registry support (`DeviceInfo`) grouping each BOINC host into a dedicated device card with hardware/software metadata, Area assignment, and configuration links.
+* Automatically detect and report BOINC client software version via RPC.
+* Allowed dashes (`-`) and underscores (`_`) in instance names with automatic service name sanitization.
+* Added entity translations and icons.
+
 ## 0.0.7
 * Added start and stop actions for GPU
 * Improved Soft Stop feature to Stop all non-running task immediately to avoid starting them for a few seconds
@@ -134,7 +144,5 @@ This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboin
 * Update deprecated stuff for Home Assistant 2025.6.0
 
 # Roadmap
-* Add more sensors (Let me know what you want and i could try to implement it)
 * Add Availability sensor to check if boinc is running and the remote access works
 * Document the GPU services
-* Add HACS support

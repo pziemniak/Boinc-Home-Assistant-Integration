@@ -50,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def stop_gpu(call: ServiceCall) -> None:
         await boinc.stop_gpu()
 
-    service_name_suffix = str(name).replace("-", "_")
+    service_name_suffix = str(name).lower().replace("-", "_")
     hass.services.async_register(
         DOMAIN, "start_boinc_" + service_name_suffix, start_boinc
     )

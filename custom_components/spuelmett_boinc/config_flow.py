@@ -25,7 +25,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(
             NAME,
             default="Client1",
-            msg="Accepts only letters and numbers.",
+            msg="Accepts letters, numbers, dashes, and underscores.",
             description="test",
         ): str,
         vol.Required(BOINC_IP): str,
@@ -47,7 +47,7 @@ STEP_CONFIGURE = vol.Schema(
 
 def is_valid_name(name: str) -> bool:
     """Validate the provided Name."""
-    return bool(re.match(r"[a-zA-Z0-9]*$", name))
+    return bool(re.match(r"^[a-zA-Z0-9_-]+$", name))
 
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:

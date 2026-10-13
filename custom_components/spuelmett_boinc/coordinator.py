@@ -4,7 +4,10 @@ import logging
 from .const import (
     AVERAGE_PROGRESS_RATE,
     NAME,
+    PROJECTS_DETAIL,
     RUNNING_TASK_COUNT,
+    TOTAL_CREDIT,
+    TOTAL_RAC,
     TOTAL_TASK_COUNT,
 )
 from homeassistant.components.sensor import SensorDeviceClass
@@ -44,9 +47,14 @@ class BoincCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         results = await self.boinc.get_results()
+        projects = await self.boinc.get_projects()
+
         data = {}
         data[RUNNING_TASK_COUNT] = self.boinc.get_running_task_count(results)
         data[TOTAL_TASK_COUNT] = self.boinc.get_total_task_count(results)
         data[AVERAGE_PROGRESS_RATE] = self.boinc.average_progress_rate(results)
+        data[TOTAL_RAC] = self.boinc.get_total_rac(projects)
+        data[TOTAL_CREDIT] = self.boinc.get_total_credit(projects)
+        data[PROJECTS_DETAIL] = self.boinc.get_projects_detail(projects)
 
         return data
