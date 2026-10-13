@@ -37,6 +37,19 @@
       "total_credit": {
         "name": "Total credit"
       }
+    },
+    "switch": {
+      "computations": {
+        "name": "Computations"
+      },
+      "gpu": {
+        "name": "GPU computations"
+      }
+    },
+    "button": {
+      "hard_stop": {
+        "name": "Stop immediately"
+      }
     }
   }
 }

@@ -3,9 +3,12 @@ import logging
 
 from .const import (
     AVERAGE_PROGRESS_RATE,
+    BOINC_MODE_AUTO,
+    GPU_MODE,
     NAME,
     PROJECTS_DETAIL,
     RUNNING_TASK_COUNT,
+    TASK_MODE,
     TOTAL_CREDIT,
     TOTAL_RAC,
     TOTAL_TASK_COUNT,
@@ -48,6 +51,7 @@ class BoincCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         results = await self.boinc.get_results()
         projects = await self.boinc.get_projects()
+        cc_status = await self.boinc.get_cc_status()
 
         data = {}
         data[RUNNING_TASK_COUNT] = self.boinc.get_running_task_count(results)
@@ -56,5 +60,8 @@ class BoincCoordinator(DataUpdateCoordinator):
         data[TOTAL_RAC] = self.boinc.get_total_rac(projects)
         data[TOTAL_CREDIT] = self.boinc.get_total_credit(projects)
         data[PROJECTS_DETAIL] = self.boinc.get_projects_detail(projects)
+
+        data[TASK_MODE] = cc_status.get(TASK_MODE, BOINC_MODE_AUTO)
+        data[GPU_MODE] = cc_status.get(GPU_MODE, BOINC_MODE_AUTO)
 
         return data

@@ -93,7 +93,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 info = await validate_input(self.hass, user_input)
             except InvalidName:
-                errors["base"] = "Invalid Character in name"
+                errors["name"] = "invalid_name"
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:

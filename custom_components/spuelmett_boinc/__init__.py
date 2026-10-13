@@ -13,7 +13,7 @@ from homeassistant.helpers.event import async_track_time_interval
 from .boinc_control import BoincControl
 from .const import BOINC_IP, CHECKPOINTING, DOMAIN, LISTENER, NAME, PASSWORD
 
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.BUTTON]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -23,7 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )  # use default value, when upgrading from a version with no name in the input
     ip = entry.data[BOINC_IP]
     password = entry.data[PASSWORD]
-    checkpoint_time = entry.options["checkpoint_time"]
+    checkpoint_time = entry.options.get(CHECKPOINTING, 120)
 
     boinc = BoincControl(ip, password, checkpoint_time)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = boinc
@@ -109,5 +109,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update options."""
-    checkpoint_time = entry.options[CHECKPOINTING]
+    checkpoint_time = entry.options.get(CHECKPOINTING, 120)
     hass.data[DOMAIN][entry.entry_id].set_checkpoint_time(checkpoint_time)

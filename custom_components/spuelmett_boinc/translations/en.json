@@ -6,6 +6,7 @@
         "error": {
             "cannot_connect": "Failed to connect",
             "invalid_auth": "Invalid authentication",
+            "invalid_name": "Invalid character in name. Only letters, numbers, dashes, and underscores are allowed.",
             "unknown": "Unexpected error"
         },
         "step": {
@@ -44,6 +45,19 @@
             },
             "total_credit": {
                 "name": "Total credit"
+            }
+        },
+        "switch": {
+            "computations": {
+                "name": "Computations"
+            },
+            "gpu": {
+                "name": "GPU computations"
+            }
+        },
+        "button": {
+            "hard_stop": {
+                "name": "Stop immediately"
             }
         }
     }

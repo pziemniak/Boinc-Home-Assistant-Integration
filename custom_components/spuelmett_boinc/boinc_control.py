@@ -41,6 +41,7 @@ class BoincControl:
 
     async def stop_boinc(self):
         await self.connect()
+        self.current_soft_stop_state = False
         await self.rpc_client.set_run_mode(Mode.NEVER, 0)
 
     async def soft_stop_boinc(self):
@@ -93,6 +94,7 @@ class BoincControl:
         # if all task are suspended set run mode to suspend
         if one_task_running is False:
             await self.rpc_client.set_run_mode(Mode.NEVER, 0)
+            self.current_soft_stop_state = False
 
     async def resume_all_task(self):
         results = await self.rpc_client.get_results()
@@ -230,3 +232,13 @@ class BoincControl:
         except Exception as err:
             _LOGGER.debug("Could not fetch BOINC client version: %s", err)
         return None
+
+    async def get_cc_status(self) -> dict:
+        await self.connect()
+        try:
+            res = await self.rpc_client.get_cc_status()
+            if isinstance(res, dict):
+                return res
+        except Exception as err:
+            _LOGGER.debug("Could not fetch cc_status: %s", err)
+        return {}

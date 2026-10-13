@@ -10,6 +10,8 @@ Features:
 * Start BOINC service
 * Hard and soft stop
 * Control the usage of GPU separately (if desired)
+* Native switches for BOINC Computations (Start / Soft Stop) and GPU (Start / Stop)
+* Native button for Immediate / Hard Stop
 * Sensors for *total tasks*, *running tasks*, *average progress rate*, *Total RAC* (credits/day) and *Total Credit* (with native LTS hourly/daily/weekly tracking)
 * Per-project credit and RAC breakdown available in sensor attributes
 * Control multiple BOINC servers (grouped into dedicated Home Assistant devices)
@@ -81,30 +83,21 @@ An example automation that starts BOINC if the energy consumption from grid is u
   mode: single
 ```
 
-## Switch for turning computations on/off
+## Native switches and buttons for controlling BOINC
 
-It can be useful to have a simple on/off switch for turning on/off the computations.
+This integration provides native Home Assistant entities to control BOINC directly from your dashboard or automations:
 
-Go to Home Assistant -> Integrations -> Add -> Ping. Set the IP of your BOINC host, and name it in the same way as you named it when setting up this integration.
+* **Computations Switch** (`switch.<instance>_computations`):
+  * **Turn on**: starts computations (`start_boinc`).
+  * **Turn off**: requests a soft stop (`soft_stop_boinc`), waiting until the next checkpoint to avoid wasting completed work.
+  * Note: when stopping, the switch waits for checkpoints before flipping to `off`.
+* **GPU Switch** (`switch.<instance>_gpu`):
+  * **Turn on**: resumes GPU processing (`start_gpu`).
+  * **Turn off**: suspends GPU processing (`stop_gpu`).
+* **Immediate / Hard Stop Button** (`button.<instance>_stop_immediately`):
+  * Instantly stops all computations and tasks without waiting for checkpoints (`stop_boinc`).
 
-Add the following to ```configuration.yaml```
-
-```yaml
-switch:
-  - platform: template
-    switches:
-      boinc:
-        friendly_name: "Boinc start/soft stop"
-        unique_id: "boinc"
-        value_template: "{{is_state('binary_sensor.<hostname>', 'on') and has_value('sensor.spuelmett_boinc_<hostname>_running_task') and (states('sensor.spuelmett_boinc_<hostname>_running_task')|float)>0 }}"
-        availability_template: "{{is_state('binary_sensor.<hostname>', 'on') and has_value('sensor.spuelmett_boinc_<hostname>_running_task')}}"
-        turn_on:
-          service: spuelmett_boinc.start_boinc_<hostname>
-        turn_off:
-          service: spuelmett_boinc.soft_stop_boinc_<hostname>
-```
-
-Please note that with a soft stop, there is a significant lag between turning the switch off, and it actually getting the state "off".
+*(Manual template switch configuration in `configuration.yaml` is no longer required.)*
 
 # Troubleshooting connectivity
 
@@ -117,6 +110,11 @@ Please note that with a soft stop, there is a significant lag between turning th
 This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboinc) from Nielstron.
 
 # Changelog
+
+## 0.0.9
+* Added native `switch` entities for BOINC Computations (Start / Soft Stop) and GPU (Start / Stop).
+* Added native `button` entity for Immediate / Hard Stop.
+* Added soft-stop status tracking and automatically reset soft-stop state once all tasks are suspended or hard-stopped.
 
 ## 0.0.8
 * Added `Total RAC` sensor (`credits/day`) reflecting host-wide recent credit gain rate.

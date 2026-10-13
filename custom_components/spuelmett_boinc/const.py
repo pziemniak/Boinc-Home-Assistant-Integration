@@ -13,3 +13,11 @@ AVERAGE_PROGRESS_RATE = "average_progess_rate"
 TOTAL_RAC = "total_rac"
 TOTAL_CREDIT = "total_credit"
 PROJECTS_DETAIL = "projects_detail"
+TASK_MODE = "task_mode"
+GPU_MODE = "gpu_mode"
+
+# BOINC run modes
+BOINC_MODE_ALWAYS = 1
+BOINC_MODE_AUTO = 2
+BOINC_MODE_NEVER = 3
+BOINC_MODE_RESTORE = 4
