@@ -10,9 +10,9 @@ Features:
 * Start BOINC service
 * Hard and soft stop
 * Control the usage of GPU separately (if desired)
+* Sensors for *total tasks*, *running tasks*, *average progress rate* (%/h), *Total RAC* (credits/day) and *Total Credit* (with native LTS hourly/daily/weekly tracking)
 * Native switches for BOINC Computations (Start / Soft Stop) and GPU (Start / Stop)
 * Native button for Immediate / Hard Stop
-* Sensors for *total tasks*, *running tasks*, *average progress rate*, *Total RAC* (credits/day) and *Total Credit* (with native LTS hourly/daily/weekly tracking)
 * Per-project credit and RAC breakdown available in sensor attributes
 * Control multiple BOINC servers (grouped into dedicated Home Assistant devices)
 
@@ -119,6 +119,7 @@ This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboin
 ## 0.0.8
 * Added `Total RAC` sensor (`credits/day`) reflecting host-wide recent credit gain rate.
 * Added `Total Credit` sensor with `total_increasing` state class for native Home Assistant Long-Term Statistics (LTS) hourly, daily, and weekly tracking.
+* Formatted sensor values and units: progress rate converted to human-readable percentage per hour (`%/h`), Total Credit formatted as integer credits, Total RAC formatted with integer precision.
 * Added per-project telemetry breakdown in sensor attributes (`projects` dictionary with individual RAC and credit values).
 * Added Home Assistant Device Registry support (`DeviceInfo`) grouping each BOINC host into a dedicated device card with hardware/software metadata, Area assignment, and configuration links.
 * Automatically detect and report BOINC client software version via RPC.

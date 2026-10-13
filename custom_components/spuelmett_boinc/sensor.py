@@ -49,27 +49,28 @@ SENSORS: tuple[RunningTaskEntityDescription, ...] = (
         key=AVERAGE_PROGRESS_RATE,
         translation_key="average_progress_rate",
         unique_id="average_progress_rate",
-        # No unit, it's extracted from response.
+        native_unit_of_measurement="%/h",
+        icon="mdi:progress-clock",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
     ),
     RunningTaskEntityDescription(
         key=TOTAL_RAC,
-        name="Total RAC",
         translation_key="total_rac",
         unique_id="total_rac",
         native_unit_of_measurement="credits/day",
         icon="mdi:speedometer",
         state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=2,
+        suggested_display_precision=0,
     ),
     RunningTaskEntityDescription(
         key=TOTAL_CREDIT,
-        name="Total Credit",
         translation_key="total_credit",
         unique_id="total_credit",
         native_unit_of_measurement="credits",
         icon="mdi:counter",
         state_class=SensorStateClass.TOTAL_INCREASING,
-        suggested_display_precision=2,
+        suggested_display_precision=0,
     ),
 )
 

@@ -140,7 +140,7 @@ class BoincControl:
 
         return len(results)
 
-    def average_progress_rate(self, results):
+    def average_progress_rate(self, results) -> float:
         total_active_tasks = 0
         total_progress_rate = 0
 
@@ -155,9 +155,12 @@ class BoincControl:
             total_active_tasks += 1
 
         if total_active_tasks == 0:
-            return 0
+            return 0.0
 
-        return total_progress_rate / total_active_tasks
+        # Progress rate is fraction per second. Convert to percentage per hour (%/h):
+        # fraction * 100 (%/s) * 3600 (s/h) = %/h
+        rate_per_hour = (total_progress_rate / total_active_tasks) * 3600 * 100
+        return round(rate_per_hour, 2)
 
     async def get_projects(self):
         await self.connect()
@@ -177,11 +180,11 @@ class BoincControl:
                 total += float(rac)
             except (ValueError, TypeError):
                 pass
-        return round(total, 2)
+        return round(total, 1)
 
-    def get_total_credit(self, projects) -> float:
+    def get_total_credit(self, projects) -> int:
         if not projects or not isinstance(projects, list):
-            return 0.0
+            return 0
         total = 0.0
         for p in projects:
             credit = getattr(p, "host_total_credit", 0.0) or 0.0
@@ -189,7 +192,7 @@ class BoincControl:
                 total += float(credit)
             except (ValueError, TypeError):
                 pass
-        return round(total, 2)
+        return int(round(total))
 
     def get_projects_detail(self, projects) -> dict[str, dict[str, float]]:
         if not projects or not isinstance(projects, list):
