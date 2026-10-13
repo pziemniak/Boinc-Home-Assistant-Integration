@@ -3,7 +3,7 @@ Client making requests to RPC server
 managing authentication etc
 """
 
-from ._raw_client import _RPCClientRaw, GUI_RPC_DEFAULT_PORT
+from ._raw_client import _RPCClientRaw, GUI_RPC_DEFAULT_PORT, DEFAULT_TIMEOUT
 from ._tag import Tag
 from ._parse import parse_generic, Project
 import xml.etree.ElementTree as ET
@@ -23,11 +23,11 @@ class Mode(Enum):
     RESTORE = Tag.RESTORE
 
 
-async def init_rpc_client(host: str, password=None, port=GUI_RPC_DEFAULT_PORT):
+async def init_rpc_client(host: str, password=None, port=GUI_RPC_DEFAULT_PORT, timeout=DEFAULT_TIMEOUT):
     """
     Creates RPC Client and initiates connection to RPC Server
     """
-    c = RPCClient(host, password, port)
+    c = RPCClient(host, password, port, timeout=timeout)
     await c.connect()
     return c
 
@@ -44,11 +44,11 @@ class RPCClient:
     For the content and structure of returned dicts refer to https://boinc.berkeley.edu/trac/wiki/GuiRpcProtocol#RequestsandReplies
     """
 
-    def __init__(self, host: str, password=None, port=GUI_RPC_DEFAULT_PORT):
+    def __init__(self, host: str, password=None, port=GUI_RPC_DEFAULT_PORT, timeout=DEFAULT_TIMEOUT):
         """
         Should not be called directly, use init_rpc_client
         """
-        self._raw_client = _RPCClientRaw(host, port)
+        self._raw_client = _RPCClientRaw(host, port, timeout=timeout)
         self.password = password
         self.connected = False
 
@@ -56,6 +56,10 @@ class RPCClient:
         if not self.connected:
             await self._raw_client.connect()
             self.connected = True
+
+    async def close(self):
+        self.connected = False
+        await self._raw_client.close()
 
     async def authorize(self, password=None):
         """

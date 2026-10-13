@@ -131,7 +131,8 @@ class BoincSensor(CoordinatorEntity[BoincCoordinator], SensorEntity):
 
     @property
     def available(self) -> bool:
-        return True
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success and self.coordinator.data is not None
 
     @property
     def native_value(self) -> int | float | None:

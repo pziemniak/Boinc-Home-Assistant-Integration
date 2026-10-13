@@ -66,6 +66,11 @@ class BoincComputationsSwitch(CoordinatorEntity[BoincCoordinator], SwitchEntity)
         )
 
     @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success and self.coordinator.data is not None
+
+    @property
     def is_on(self) -> bool:
         """Return True if BOINC is active and not soft-stopping."""
         if not self.coordinator.data:
@@ -117,6 +122,11 @@ class BoincGpuSwitch(CoordinatorEntity[BoincCoordinator], SwitchEntity):
             sw_version=getattr(self.coordinator.boinc, "version", None),
             configuration_url=f"http://{ip}:31416" if ip else None,
         )
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success and self.coordinator.data is not None
 
     @property
     def is_on(self) -> bool:

@@ -22,10 +22,20 @@ class BoincControl:
         self.version = None
 
     async def connect(self):
+        if self.rpc_client is not None and getattr(self.rpc_client, "connected", False):
+            return
         self.rpc_client = await init_rpc_client(self.host, self.password)
         await self.rpc_client.authorize()
         if self.version is None:
             self.version = await self.get_version()
+
+    async def disconnect(self):
+        if self.rpc_client is not None:
+            try:
+                await self.rpc_client.close()
+            except Exception:
+                pass
+            self.rpc_client = None
 
     def set_checkpoint_time(self, checkpoint_time):
         self.checkpoint_time = checkpoint_time
@@ -196,6 +206,8 @@ class BoincControl:
         await self.connect()
         try:
             return await self.rpc_client.get_project_status()
+        except (TimeoutError, OSError, ConnectionError):
+            raise
         except Exception as err:
             _LOGGER.warning("Could not fetch project status from BOINC host %s: %s", self.host, err)
             return []
@@ -272,6 +284,8 @@ class BoincControl:
             res = await self.rpc_client.get_cc_status()
             if isinstance(res, dict):
                 return res
+        except (TimeoutError, OSError, ConnectionError):
+            raise
         except Exception as err:
             _LOGGER.debug("Could not fetch cc_status: %s", err)
         return {}

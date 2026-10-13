@@ -15,7 +15,9 @@ from .const import (
 )
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+from .pyboinc.pyboinc.rpc_client import BOINCClientError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,9 +51,15 @@ class BoincCoordinator(DataUpdateCoordinator):
         return self.config_entry.data.get(NAME, "default")
 
     async def _async_update_data(self):
-        results = await self.boinc.get_results()
-        projects = await self.boinc.get_projects()
-        cc_status = await self.boinc.get_cc_status()
+        try:
+            results = await self.boinc.get_results()
+            projects = await self.boinc.get_projects()
+            cc_status = await self.boinc.get_cc_status()
+        except (TimeoutError, OSError, ConnectionError, BOINCClientError) as err:
+            await self.boinc.disconnect()
+            raise UpdateFailed(
+                f"BOINC host {self.boinc.host} is unreachable: {err}"
+            ) from err
 
         data = {}
         data[RUNNING_TASK_COUNT] = self.boinc.get_running_task_count(results)

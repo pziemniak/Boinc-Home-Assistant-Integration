@@ -34,8 +34,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # setup coordinator
     coordinator = BoincCoordinator(hass, entry, boinc)
-    await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+
+    # Refresh data asynchronously in the background so HA startup is never blocked
+    # even when BOINC hosts are offline or powered down.
+    if hasattr(entry, "async_create_background_task"):
+        entry.async_create_background_task(
+            hass, coordinator.async_refresh(), f"boinc_refresh_{entry.entry_id}"
+        )
+    else:
+        hass.async_create_task(coordinator.async_refresh())
 
     # Register Services that can be called from automations or scripts
     async def start_boinc(call: ServiceCall) -> None:
@@ -114,7 +122,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Unload entry
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        boinc = hass.data[DOMAIN].pop(entry.entry_id, None)
+        if boinc:
+            await boinc.disconnect()
 
     return unload_ok
 

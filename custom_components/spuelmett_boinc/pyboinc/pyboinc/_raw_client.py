@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 
 
 GUI_RPC_DEFAULT_PORT = 31416
+DEFAULT_TIMEOUT = 4.0
 REPLY_TAG = "boinc_gui_rpc_reply"
 REQUEST_TAG = "boinc_gui_rpc_request"
 END_OF_MESSAGE = b"\x03"
@@ -26,18 +27,33 @@ class _RPCClientRaw:
     Takes and returns XML Element objects
     """
 
-    def __init__(self, host: str, port=GUI_RPC_DEFAULT_PORT):
+    def __init__(self, host: str, port=GUI_RPC_DEFAULT_PORT, timeout: float = DEFAULT_TIMEOUT):
         self.host = host
         self.port = port
+        self.timeout = timeout
         self._reader = self._writer = None
 
     async def connect(self):
-        self._reader, self._writer = await asyncio.open_connection(self.host, self.port, family=AF_INET, limit=1024*5000)
+        self._reader, self._writer = await asyncio.wait_for(
+            asyncio.open_connection(self.host, self.port, family=AF_INET, limit=1024*5000),
+            timeout=self.timeout,
+        )
+
+    async def close(self):
+        if self._writer is not None:
+            try:
+                self._writer.close()
+                await self._writer.wait_closed()
+            except Exception:
+                pass
+            finally:
+                self._reader = None
+                self._writer = None
 
     async def _write(self, message: bytes):
         if self._writer is None:
             raise ConnectionError("Connection to {} was not opened before writing".format(self.host))
-        await self._writer.drain()
+        await asyncio.wait_for(self._writer.drain(), timeout=self.timeout)
         self._writer.write(message + END_OF_MESSAGE)
 
     async def send(self, request: ET.Element):
@@ -54,7 +70,10 @@ class _RPCClientRaw:
     async def _read(self):
         if self._reader is None:
             raise ConnectionError("Connection to {} was not opened before writing".format(self.host))
-        return await self._reader.readuntil(separator=END_OF_MESSAGE)
+        return await asyncio.wait_for(
+            self._reader.readuntil(separator=END_OF_MESSAGE),
+            timeout=self.timeout,
+        )
 
     async def receive(self) -> ET.Element:
         """

@@ -55,6 +55,11 @@ class BoincHardStopButton(CoordinatorEntity[BoincCoordinator], ButtonEntity):
             configuration_url=f"http://{ip}:31416" if ip else None,
         )
 
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success and self.coordinator.data is not None
+
     async def async_press(self) -> None:
         """Execute hard stop immediately."""
         await self.coordinator.boinc.stop_boinc()
