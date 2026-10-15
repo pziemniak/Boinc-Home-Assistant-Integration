@@ -137,6 +137,10 @@ This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboin
 
 # Changelog
 
+## 0.0.11
+* Pointed documentation and issue tracker URLs to repository fork (`pziemniak/Boinc-Home-Assistant-Integration`).
+* Updated maintainers/codeowners to include both `@pziemniak` and `@SpuelMett`.
+
 ## 0.0.10
 * Removed the redundant `strings.json`; `translations/en.json` is now the only string source.
 * Documentation: automation examples now use the native switch; entity IDs and GPU control are documented.
