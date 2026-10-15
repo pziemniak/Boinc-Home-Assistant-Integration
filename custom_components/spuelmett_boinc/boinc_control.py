@@ -7,9 +7,37 @@ import logging
 from typing import Any
 
 from .pyboinc.pyboinc import init_rpc_client
-from .pyboinc.pyboinc.rpc_client import Mode
+from .pyboinc.pyboinc.rpc_client import BOINCClientError, Mode
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _extract_project_credit(project: Any) -> float:
+    """Extract total credit for a project with fallback hierarchy."""
+    val = (
+        getattr(project, "host_total_credit", None)
+        or getattr(project, "total_credit", None)
+        or getattr(project, "user_total_credit", None)
+        or 0.0
+    )
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _extract_project_rac(project: Any) -> float:
+    """Extract RAC (recent average credit) for a project with fallback hierarchy."""
+    val = (
+        getattr(project, "host_expavg_credit", None)
+        or getattr(project, "expavg_credit", None)
+        or getattr(project, "user_expavg_credit", None)
+        or 0.0
+    )
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return 0.0
 
 
 class BoincControl:
@@ -26,8 +54,14 @@ class BoincControl:
     async def connect(self):
         if self.rpc_client is not None and getattr(self.rpc_client, "connected", False):
             return
-        self.rpc_client = await init_rpc_client(self.host, self.password)
-        await self.rpc_client.authorize()
+        client = await init_rpc_client(self.host, self.password)
+        try:
+            if not await client.authorize():
+                raise BOINCClientError(f"Authorization failed for BOINC host {self.host}")
+        except Exception:
+            await client.close()
+            raise
+        self.rpc_client = client
         if self.version is None:
             self.version = await self.get_version()
         if self.model is None:
@@ -39,7 +73,8 @@ class BoincControl:
                 await self.rpc_client.close()
             except Exception:
                 pass
-            self.rpc_client = None
+            finally:
+                self.rpc_client = None
 
     def set_checkpoint_time(self, checkpoint_time):
         self.checkpoint_time = checkpoint_time
@@ -143,14 +178,17 @@ class BoincControl:
     async def resume_all_task(self):
         results = await self.rpc_client.get_results()
 
-        # if no task are there, results is a string
-        if results == "\n":
+        # if no tasks are there, results is a string or non-list
+        if not isinstance(results, list):
             return
 
         for result in results:
-            project_url = result["project_url"]
-            name = result["name"]
-            await self.rpc_client.resume_result(project_url, name)
+            if not isinstance(result, dict):
+                continue
+            project_url = result.get("project_url")
+            name = result.get("name")
+            if project_url and name:
+                await self.rpc_client.resume_result(project_url, name)
 
     async def get_results(self):
         # make sure rpc client is available
@@ -160,43 +198,38 @@ class BoincControl:
         return await self.rpc_client.get_results()
 
     def get_running_task_count(self, results):
-        # if no task are there, results is a string
-        if results == "\n":
+        if not isinstance(results, list):
             return 0
 
         count = 0
         for result in results:
-            # check if running
-            if "active_task" not in result:
-                continue
-
-            # active task is 1, otherwise it is 0
-            activeState = result["active_task"]["active_task_state"]
-            if activeState == 1:
+            active_task = result.get("active_task") if isinstance(result, dict) else None
+            if active_task and active_task.get("active_task_state") == 1:
                 count += 1
 
         return count
 
     def get_total_task_count(self, results):
-        # if no task are there, results is a string
-        if results == "\n":
+        if not isinstance(results, list):
             return 0
 
         return len(results)
 
     def average_progress_rate(self, results) -> float:
+        if not isinstance(results, list):
+            return 0.0
+
         total_active_tasks = 0
-        total_progress_rate = 0
+        total_progress_rate = 0.0
 
         for result in results:
-            if "active_task" not in result:
-                continue
-
-            if "progress_rate" not in result["active_task"]:
-                continue
-
-            total_progress_rate += result["active_task"]["progress_rate"]
-            total_active_tasks += 1
+            active_task = result.get("active_task") if isinstance(result, dict) else None
+            if active_task and "progress_rate" in active_task:
+                try:
+                    total_progress_rate += float(active_task["progress_rate"])
+                    total_active_tasks += 1
+                except (ValueError, TypeError):
+                    pass
 
         if total_active_tasks == 0:
             return 0.0
@@ -219,25 +252,13 @@ class BoincControl:
     def get_total_rac(self, projects) -> float:
         if not projects or not isinstance(projects, list):
             return 0.0
-        total = 0.0
-        for p in projects:
-            rac = getattr(p, "host_expavg_credit", 0.0) or 0.0
-            try:
-                total += float(rac)
-            except (ValueError, TypeError):
-                pass
+        total = sum(_extract_project_rac(p) for p in projects)
         return round(total, 1)
 
     def get_total_credit(self, projects) -> int:
         if not projects or not isinstance(projects, list):
             return 0
-        total = 0.0
-        for p in projects:
-            credit = getattr(p, "host_total_credit", 0.0) or 0.0
-            try:
-                total += float(credit)
-            except (ValueError, TypeError):
-                pass
+        total = sum(_extract_project_credit(p) for p in projects)
         return int(round(total))
 
     def get_completed_tasks(self, projects) -> int:
@@ -275,18 +296,10 @@ class BoincControl:
                 or getattr(p, "master_url", None)
                 or "Unknown"
             )
-            rac = getattr(p, "host_expavg_credit", 0.0) or 0.0
-            credit = getattr(p, "host_total_credit", 0.0) or 0.0
+            rac_val = round(_extract_project_rac(p), 2)
+            credit_val = round(_extract_project_credit(p), 2)
             njobs_success = getattr(p, "njobs_success", 0) or 0
             njobs_error = getattr(p, "njobs_error", 0) or 0
-            try:
-                rac_val = round(float(rac), 2)
-            except (ValueError, TypeError):
-                rac_val = 0.0
-            try:
-                credit_val = round(float(credit), 2)
-            except (ValueError, TypeError):
-                credit_val = 0.0
             try:
                 success_val = int(njobs_success)
             except (ValueError, TypeError):

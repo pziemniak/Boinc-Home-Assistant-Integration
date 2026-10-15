@@ -5,7 +5,6 @@ NAME = "name"
 BOINC_IP = "remote_ip"
 PASSWORD = "password"
 CHECKPOINTING = "checkpoint_time"
-LISTENER = "remove_listener"
 
 RUNNING_TASK_COUNT = "running_task"
 TOTAL_TASK_COUNT = "total_task"

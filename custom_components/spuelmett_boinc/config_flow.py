@@ -60,11 +60,18 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         raise InvalidName
 
     authorize_answer = False
+    rpc_client = None
     try:
         rpc_client = await init_rpc_client(ip, password)
         authorize_answer = await rpc_client.authorize()
-    except:
+    except Exception:
         raise CannotConnect
+    finally:
+        if rpc_client is not None:
+            try:
+                await rpc_client.close()
+            except Exception:
+                pass
 
     if authorize_answer is True:
         return {"title": "Boinc control: " + name}

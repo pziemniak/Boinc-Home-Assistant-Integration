@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
+import logging
 
 from .coordinator import BoincCoordinator
 from homeassistant.config_entries import ConfigEntry
@@ -12,9 +13,10 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.event import async_track_time_interval
 
 from .boinc_control import BoincControl
-from .const import BOINC_IP, CHECKPOINTING, DOMAIN, LISTENER, NAME, PASSWORD
+from .const import BOINC_IP, CHECKPOINTING, DOMAIN, NAME, PASSWORD
 
 PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.BUTTON]
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -73,33 +75,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await coordinator.async_request_refresh()
 
     service_name_suffix = str(name).lower().replace("-", "_")
-    hass.services.async_register(
-        DOMAIN, "start_boinc_" + service_name_suffix, start_boinc
-    )
-    hass.services.async_register(
-        DOMAIN, "stop_boinc_" + service_name_suffix, stop_boinc
-    )
-    hass.services.async_register(
-        DOMAIN, "soft_stop_boinc_" + service_name_suffix, soft_stop_boinc
-    )
-    hass.services.async_register(
-        DOMAIN, "soft_stop_check_" + service_name_suffix, soft_stop_check
-    )
-    hass.services.async_register(DOMAIN, "start_gpu_" + service_name_suffix, start_gpu)
-    hass.services.async_register(DOMAIN, "stop_gpu_" + service_name_suffix, stop_gpu)
+    services = [
+        ("start_boinc_" + service_name_suffix, start_boinc),
+        ("stop_boinc_" + service_name_suffix, stop_boinc),
+        ("soft_stop_boinc_" + service_name_suffix, soft_stop_boinc),
+        ("soft_stop_check_" + service_name_suffix, soft_stop_check),
+        ("start_gpu_" + service_name_suffix, start_gpu),
+        ("stop_gpu_" + service_name_suffix, stop_gpu),
+    ]
+    for service_name, service_func in services:
+        hass.services.async_register(DOMAIN, service_name, service_func)
+        entry.async_on_unload(
+            lambda s=service_name: hass.services.async_remove(DOMAIN, s)
+        )
 
     # Add Event listener to trigger soft stop every minute
     async def update_check(now):
         if boinc.soft_stop_state:
-            await boinc.update()
-            await coordinator.async_request_refresh()
+            try:
+                await boinc.update()
+                await coordinator.async_request_refresh()
+            except Exception as err:
+                _LOGGER.warning(
+                    "Error during soft-stop background check for BOINC host %s: %s",
+                    boinc.host,
+                    err,
+                )
+                await boinc.disconnect()
 
-    remove_listener = async_track_time_interval(
-        hass, update_check, timedelta(minutes=1), cancel_on_shutdown=True
+    entry.async_on_unload(
+        async_track_time_interval(
+            hass, update_check, timedelta(minutes=1), cancel_on_shutdown=True
+        )
     )
-
-    listener_name = LISTENER + str(name)
-    hass.data[DOMAIN][listener_name] = remove_listener
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -108,18 +116,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-
-    # get name
-    name = entry.data.get(
-        NAME, "default"
-    )  # use default value, when upgrading from a version with no name in the input
-
-    # Remove current listener for soft stop
-    listener_name = LISTENER + str(name)  # create name
-    remove_listener = hass.data[DOMAIN][listener_name]
-    remove_listener()
-
-    # Unload entry
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         boinc = hass.data[DOMAIN].pop(entry.entry_id, None)

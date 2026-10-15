@@ -17,7 +17,6 @@ from .const import (
     TOTAL_RAC,
     TOTAL_TASK_COUNT,
 )
-from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -45,7 +44,6 @@ class BoincCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=60),
             always_update=True,
         )
-        self._device: SensorDeviceClass | None = None
         self.boinc = boinc
 
     @property
