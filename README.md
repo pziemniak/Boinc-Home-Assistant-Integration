@@ -1,10 +1,10 @@
 # Boinc Control for Home Assistant
 
-This Home Assistant integration let's you start and stop BOINC running on another machine on your network from Home Assistant, which means that it allows you to create automations that:
-* Use exess solar to benefit science.
+This Home Assistant integration lets you start and stop BOINC running on another machine on your network from Home Assistant, which means that it allows you to create automations that:
+* Use excess solar to benefit science.
 * Instead of using direct electric heating for a room, use the heat from your BOINC server to heat a room, and benefit science. 
 
-If you are looking to run BOINC on your Home Assistant host, use the [BOINC add-on](https://github.com/hectorespert/boinc-addons)).
+If you are looking to run BOINC on your Home Assistant host, use the [BOINC add-on](https://github.com/hectorespert/boinc-addons).
 
 Features:
 * Start BOINC service
@@ -24,21 +24,25 @@ Features:
 3. Add integration "Boinc Control"
 4. Enter a name, the IP-adress (no port) and the password you have set in ```gui_rpc_auth.cfg```
 1. If the connection was successful you'll get a message about it. If it was unsuccessful, then do some network troubleshooting 
-2. Verify that the integration works. Go to Developer Tools -> Actions -> search for "boinc". Start and stop Boinc to see that BOINC is responding as expected.
-1. Create your automations of choice using the new BOINC control services available in your Home Assistant.
+2. Verify that the integration works. Open the new BOINC device and toggle the **Computations** switch to start and stop BOINC and see that BOINC is responding as expected.
+1. Create your automations of choice using the BOINC switches, buttons and services available in your Home Assistant.
 
 # Understanding the BOINC control services
+
+The actions below can be triggered with the native entities (recommended) or with the per-host services (`spuelmett_boinc.<action>_<hostname>`), which are kept for backwards compatibility.
 
 ## Start BOINC
 Sets the run mode of your remote BOINC machine to "run based on preferences".
 
-You start BOINC by calling the service ```spuelmett_boinc.start_boinc_<hostname>```.
+You start BOINC by:
+* Turning on the native **Computations** switch (`switch.boinc_<name>_computations`), or
+* Calling the service ```spuelmett_boinc.start_boinc_<hostname>```.
 
 ## Stop BOINC (Hard stop)
 Sets the run mode of your remote BOINC machine to "never". This stops all running tasks immediately without waiting for checkpoints, and cancels any pending soft stop.
 
 You can trigger a hard stop by:
-* Pressing the native **Stop immediately** button (`button.<instance>_stop_immediately`), or
+* Pressing the native **Stop immediately** button (`button.boinc_<name>_stop_immediately`), or
 * Calling the service ```spuelmett_boinc.stop_boinc_<hostname>```.
 
 ## Soft stop BOINC
@@ -47,10 +51,15 @@ When different BOINC projects run, they will on a regular basis perform a *check
 This integration implements a _soft stop_ by waiting until next checkpoint (a simplified description, see next chapter for details).
 
 You soft stop BOINC by:
-* Toggling the native **Computations** switch to off (`switch.<instance>_computations`), or
+* Toggling the native **Computations** switch to off (`switch.boinc_<name>_computations`), or
 * Calling the service ```spuelmett_boinc.soft_stop_boinc_<hostname>```.
 
 Once checkpoints have been reached across all tasks, the run mode of your remote BOINC machine is set to "never".
+
+## GPU control
+The GPU can be started and stopped independently of the CPU computations:
+* Toggling the native **GPU computations** switch (`switch.boinc_<name>_gpu_computations`), or
+* Calling ```spuelmett_boinc.start_gpu_<hostname>``` / ```spuelmett_boinc.stop_gpu_<hostname>```.
 
 ### Optimizing soft stop
 Since each BOINC project and task differs in how often checkpoints are made, there can be scenarios where you'd like to optimize the soft stop. To do so, you need to understand how the soft stop works in this integration:
@@ -58,43 +67,60 @@ Since each BOINC project and task differs in how often checkpoints are made, the
 * If the last checkpoint was made less than 120 seconds ago, the integration requests the host to suspend the task immediately (limiting computation loss to < 120 seconds). The 120 seconds is configurable in integration Options (`checkpoint_time`).
 * If the last checkpoint was made longer ago, the integration leaves the task running and waits for the next checkpoint to be recorded (checked every 60 seconds).
 * **Safety Timeout:** To prevent tasks with very long or broken checkpoint intervals from running indefinitely, the integration enforces a safety timeout (10 minutes or 3× `checkpoint_time`). If a task has not checkpointed within this timeout, it is suspended automatically.
-* If you need to halt computations immediately while a soft stop is in progress, trigger a **Hard stop** (`button.<instance>_stop_immediately`).
+* If you need to halt computations immediately while a soft stop is in progress, trigger a **Hard stop** (`button.boinc_<name>_stop_immediately`).
 
 # Example configurations
 
 ## Automation
-An example automation that starts BOINC if the energy consumption from grid is under -10 watts for 5 minutes. 
+An example automation that starts BOINC if the energy consumption from grid is under -10 watts for 5 minutes, using the native computations switch.
 ```yaml
-- id: '1111111111111'
-  alias: Start Boinc
-  description: ''
-  trigger:
-  - platform: numeric_state
+alias: Start BOINC on solar surplus
+description: ''
+triggers:
+  - trigger: numeric_state
     entity_id: sensor.energymetermqtt_sml_curr_w
-    for:
-      hours: 0
-      minutes: 5
-      seconds: 0
     below: -10
-  condition: []
-  action:
-  - service: spuelmett_boinc.start_boinc_name
-    data: {}
-  mode: single
+    for: "00:05:00"
+conditions: []
+actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.boinc_<name>_computations
+mode: single
 ```
+
+And one that soft stops BOINC again when the grid consumption rises above 50 watts for 5 minutes (waits for checkpoints, so no work is wasted):
+```yaml
+alias: Soft stop BOINC when solar surplus ends
+description: ''
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.energymetermqtt_sml_curr_w
+    above: 50
+    for: "00:05:00"
+conditions: []
+actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.boinc_<name>_computations
+mode: single
+```
+
+> The entity IDs are generated by Home Assistant from the device name (`BOINC <name>`) and the entity name. Check the exact ID in the entity settings of your device.
 
 ## Native switches and buttons for controlling BOINC
 
 This integration provides native Home Assistant entities to control BOINC directly from your dashboard or automations:
 
-* **Computations Switch** (`switch.<instance>_computations`):
+* **Computations Switch** (`switch.boinc_<name>_computations`):
   * **Turn on**: starts computations (`start_boinc`).
   * **Turn off**: requests a soft stop (`soft_stop_boinc`), waiting until the next checkpoint to avoid wasting completed work.
   * Note: when stopping, the switch waits for checkpoints before flipping to `off`.
-* **GPU Switch** (`switch.<instance>_gpu`):
+* **GPU Switch** (`switch.boinc_<name>_gpu_computations`):
   * **Turn on**: resumes GPU processing (`start_gpu`).
   * **Turn off**: suspends GPU processing (`stop_gpu`).
-* **Immediate / Hard Stop Button** (`button.<instance>_stop_immediately`):
+  * The GPU is controlled independently of the computations switch.
+* **Immediate / Hard Stop Button** (`button.boinc_<name>_stop_immediately`):
   * Instantly stops all computations and tasks without waiting for checkpoints (`stop_boinc`).
 
 *(Manual template switch configuration in `configuration.yaml` is no longer required.)*
@@ -110,6 +136,10 @@ This integration provides native Home Assistant entities to control BOINC direct
 This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboinc) from Nielstron.
 
 # Changelog
+
+## 0.0.10
+* Removed the redundant `strings.json`; `translations/en.json` is now the only string source.
+* Documentation: automation examples now use the native switch; entity IDs and GPU control are documented.
 
 ## 0.0.9
 * Added native `switch` entities for BOINC Computations (Start / Soft Stop) and GPU (Start / Stop).
@@ -145,4 +175,3 @@ This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboin
 
 # Roadmap
 * Add Availability sensor to check if boinc is running and the remote access works
-* Document the GPU services
