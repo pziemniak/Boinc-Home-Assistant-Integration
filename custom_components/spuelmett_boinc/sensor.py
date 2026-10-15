@@ -4,9 +4,7 @@ from typing import Any
 
 from .const import (
     AVERAGE_PROGRESS_RATE,
-    BOINC_IP,
     COMPLETED_TASK_COUNT,
-    DOMAIN,
     FAILED_TASK_COUNT,
     PROJECTS_DETAIL,
     RUNNING_TASK_COUNT,
@@ -15,13 +13,12 @@ from .const import (
     TOTAL_TASK_COUNT,
 )
 from .coordinator import BoincCoordinator
+from .entity import BoincEntity
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.components.sensor.const import SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -108,11 +105,10 @@ async def async_setup_entry(
     )
 
 
-class BoincSensor(CoordinatorEntity[BoincCoordinator], SensorEntity):
+class BoincSensor(BoincEntity, SensorEntity):
     """Implementation of the sensor."""
 
     entity_description: RunningTaskEntityDescription
-    _attr_has_entity_name = True
     _attr_icon = "mdi:numeric"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_category = None
@@ -133,26 +129,6 @@ class BoincSensor(CoordinatorEntity[BoincCoordinator], SensorEntity):
             self._attr_native_unit_of_measurement = description.native_unit_of_measurement
         if description.suggested_display_precision is not None:
             self._attr_suggested_display_precision = description.suggested_display_precision
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this BOINC host."""
-        entry = self.coordinator.config_entry
-        name = self.coordinator.get_entry_name()
-        ip = entry.data.get(BOINC_IP) if entry else None
-        return DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=f"BOINC {name}",
-            manufacturer="BOINC",
-            model="BOINC Client Host",
-            sw_version=getattr(self.coordinator.boinc, "version", None),
-            configuration_url=f"http://{ip}:31416" if ip else None,
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return self.coordinator.last_update_success and self.coordinator.data is not None
 
     @property
     def native_value(self) -> int | float | None:

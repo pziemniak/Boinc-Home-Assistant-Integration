@@ -14,6 +14,7 @@ Features:
 * Native switches for BOINC Computations (Start / Soft Stop) and GPU (Start / Stop)
 * Native button for Immediate / Hard Stop
 * Detailed project telemetry: per-project credit, RAC, completed tasks, and dedicated `failed_projects` breakdown on the Failed Tasks sensor
+* Real hardware detection: automatically discovers CPU and GPU models via BOINC RPC and displays them on the Home Assistant Device card (`model`)
 * Control multiple BOINC servers (grouped into dedicated Home Assistant devices)
 
 # Installation
@@ -136,6 +137,11 @@ This integration provides native Home Assistant entities to control BOINC direct
 This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboinc) from Nielstron.
 
 # Changelog
+
+## 0.0.12
+* Added real hardware detection: queries host hardware via `get_host_info()` RPC to discover real CPU (`p_model`) and GPU (`coprocs` CUDA / OpenCL) models.
+* Replaced static `BOINC Client Host` model string across all entities (`sensor`, `switch`, `button`) with the detected hardware model (e.g. `AMD Ryzen 9 5900X | NVIDIA GeForce RTX 3080`).
+* Automatic Home Assistant Device Registry synchronization: automatically updates existing registered devices when hardware or software version is detected or refreshed.
 
 ## 0.0.11
 * Added `Completed tasks` sensor (`sensor.<name>_completed_tasks`, unit `tasks`, state class `total_increasing` for Home Assistant LTS).

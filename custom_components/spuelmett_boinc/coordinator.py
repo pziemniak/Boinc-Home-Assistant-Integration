@@ -3,8 +3,10 @@ import logging
 
 from .const import (
     AVERAGE_PROGRESS_RATE,
+    BOINC_IP,
     BOINC_MODE_AUTO,
     COMPLETED_TASK_COUNT,
+    DOMAIN,
     FAILED_TASK_COUNT,
     GPU_MODE,
     NAME,
@@ -17,6 +19,7 @@ from .const import (
 )
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .pyboinc.pyboinc.rpc_client import BOINCClientError
@@ -52,6 +55,21 @@ class BoincCoordinator(DataUpdateCoordinator):
     def get_entry_name(self) -> str:
         return self.config_entry.data.get(NAME, "default")
 
+    @property
+    def device_info(self) -> dr.DeviceInfo:
+        """Return device information about this BOINC host."""
+        entry = self.config_entry
+        name = self.get_entry_name()
+        ip = entry.data.get(BOINC_IP) if entry else None
+        return dr.DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=f"BOINC {name}",
+            manufacturer="BOINC",
+            model=getattr(self.boinc, "model", None) or "BOINC Client Host",
+            sw_version=getattr(self.boinc, "version", None),
+            configuration_url=f"http://{ip}:31416" if ip else None,
+        )
+
     async def _async_update_data(self):
         try:
             results = await self.boinc.get_results()
@@ -75,5 +93,22 @@ class BoincCoordinator(DataUpdateCoordinator):
 
         data[TASK_MODE] = cc_status.get(TASK_MODE, BOINC_MODE_AUTO)
         data[GPU_MODE] = cc_status.get(GPU_MODE, BOINC_MODE_AUTO)
+
+        if self.boinc.version is None:
+            self.boinc.version = await self.boinc.get_version()
+        if self.boinc.model is None:
+            self.boinc.model = await self.boinc.get_model()
+
+        if self.boinc.model or self.boinc.version:
+            dev_reg = dr.async_get(self.hass)
+            device = dev_reg.async_get_device(identifiers={(DOMAIN, self.entry_id)})
+            if device:
+                updates = {}
+                if self.boinc.model and device.model != self.boinc.model:
+                    updates["model"] = self.boinc.model
+                if self.boinc.version and device.sw_version != self.boinc.version:
+                    updates["sw_version"] = self.boinc.version
+                if updates:
+                    dev_reg.async_update_device(device.id, **updates)
 
         return data

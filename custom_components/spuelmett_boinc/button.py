@@ -5,12 +5,10 @@ from __future__ import annotations
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import BOINC_IP, DOMAIN
 from .coordinator import BoincCoordinator
+from .entity import BoincEntity
 
 
 async def async_setup_entry(
@@ -28,10 +26,9 @@ async def async_setup_entry(
     )
 
 
-class BoincHardStopButton(CoordinatorEntity[BoincCoordinator], ButtonEntity):
+class BoincHardStopButton(BoincEntity, ButtonEntity):
     """Button to immediately halt all computations (hard stop)."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "hard_stop"
     _attr_icon = "mdi:stop-circle"
 
@@ -39,26 +36,6 @@ class BoincHardStopButton(CoordinatorEntity[BoincCoordinator], ButtonEntity):
         """Initialize the button."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.get_entry_name()}_hard_stop"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        entry = self.coordinator.config_entry
-        name = self.coordinator.get_entry_name()
-        ip = entry.data.get(BOINC_IP) if entry else None
-        return DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=f"BOINC {name}",
-            manufacturer="BOINC",
-            model="BOINC Client Host",
-            sw_version=getattr(self.coordinator.boinc, "version", None),
-            configuration_url=f"http://{ip}:31416" if ip else None,
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return self.coordinator.last_update_success and self.coordinator.data is not None
 
     async def async_press(self) -> None:
         """Execute hard stop immediately."""

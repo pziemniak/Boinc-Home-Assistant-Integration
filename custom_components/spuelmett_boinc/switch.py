@@ -7,19 +7,16 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    BOINC_IP,
     BOINC_MODE_AUTO,
     BOINC_MODE_NEVER,
-    DOMAIN,
     GPU_MODE,
     TASK_MODE,
 )
 from .coordinator import BoincCoordinator
+from .entity import BoincEntity
 
 
 async def async_setup_entry(
@@ -38,10 +35,9 @@ async def async_setup_entry(
     )
 
 
-class BoincComputationsSwitch(CoordinatorEntity[BoincCoordinator], SwitchEntity):
+class BoincComputationsSwitch(BoincEntity, SwitchEntity):
     """Switch to turn BOINC computations on (start) or off (soft stop)."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "computations"
     _attr_icon = "mdi:cpu-64-bit"
 
@@ -49,26 +45,6 @@ class BoincComputationsSwitch(CoordinatorEntity[BoincCoordinator], SwitchEntity)
         """Initialize the switch."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.get_entry_name()}_computations"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        entry = self.coordinator.config_entry
-        name = self.coordinator.get_entry_name()
-        ip = entry.data.get(BOINC_IP) if entry else None
-        return DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=f"BOINC {name}",
-            manufacturer="BOINC",
-            model="BOINC Client Host",
-            sw_version=getattr(self.coordinator.boinc, "version", None),
-            configuration_url=f"http://{ip}:31416" if ip else None,
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return self.coordinator.last_update_success and self.coordinator.data is not None
 
     @property
     def is_on(self) -> bool:
@@ -96,10 +72,9 @@ class BoincComputationsSwitch(CoordinatorEntity[BoincCoordinator], SwitchEntity)
         await self.coordinator.async_request_refresh()
 
 
-class BoincGpuSwitch(CoordinatorEntity[BoincCoordinator], SwitchEntity):
+class BoincGpuSwitch(BoincEntity, SwitchEntity):
     """Switch to turn BOINC GPU usage on or off."""
 
-    _attr_has_entity_name = True
     _attr_translation_key = "gpu"
     _attr_icon = "mdi:expansion-card"
 
@@ -107,26 +82,6 @@ class BoincGpuSwitch(CoordinatorEntity[BoincCoordinator], SwitchEntity):
         """Initialize the switch."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.get_entry_name()}_gpu"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        entry = self.coordinator.config_entry
-        name = self.coordinator.get_entry_name()
-        ip = entry.data.get(BOINC_IP) if entry else None
-        return DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=f"BOINC {name}",
-            manufacturer="BOINC",
-            model="BOINC Client Host",
-            sw_version=getattr(self.coordinator.boinc, "version", None),
-            configuration_url=f"http://{ip}:31416" if ip else None,
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return self.coordinator.last_update_success and self.coordinator.data is not None
 
     @property
     def is_on(self) -> bool:

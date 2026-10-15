@@ -21,6 +21,7 @@ class BoincControl:
         self.checkpoint_time = checkpoint_time
         self.rpc_client = None
         self.version = None
+        self.model = None
 
     async def connect(self):
         if self.rpc_client is not None and getattr(self.rpc_client, "connected", False):
@@ -29,6 +30,8 @@ class BoincControl:
         await self.rpc_client.authorize()
         if self.version is None:
             self.version = await self.get_version()
+        if self.model is None:
+            self.model = await self.get_model()
 
     async def disconnect(self):
         if self.rpc_client is not None:
@@ -313,6 +316,66 @@ class BoincControl:
                     return f"{major}.{minor}.{release}"
         except Exception as err:
             _LOGGER.debug("Could not fetch BOINC client version: %s", err)
+        return None
+
+    async def get_host_info(self) -> dict | None:
+        if not self.rpc_client:
+            return None
+        try:
+            res = await self.rpc_client.get_host_info()
+            if isinstance(res, dict):
+                return res
+        except Exception as err:
+            _LOGGER.debug("Could not fetch BOINC host info: %s", err)
+        return None
+
+    @staticmethod
+    def _extract_gpu_model(coprocs: Any) -> str | None:
+        raw_names: list[str] = []
+        if isinstance(coprocs, list):
+            for item in coprocs:
+                if isinstance(item, dict) and "name" in item and isinstance(item["name"], str):
+                    raw_names.append(item["name"].strip())
+                elif isinstance(item, dict):
+                    for v in item.values():
+                        if isinstance(v, dict) and "name" in v and isinstance(v["name"], str):
+                            raw_names.append(v["name"].strip())
+        elif isinstance(coprocs, dict):
+            if "name" in coprocs and isinstance(coprocs["name"], str):
+                raw_names.append(coprocs["name"].strip())
+            for v in coprocs.values():
+                if isinstance(v, dict) and "name" in v and isinstance(v["name"], str):
+                    raw_names.append(v["name"].strip())
+                elif isinstance(v, list):
+                    for sub in v:
+                        if isinstance(sub, dict) and "name" in sub and isinstance(sub["name"], str):
+                            raw_names.append(sub["name"].strip())
+
+        unique_names = list(dict.fromkeys(n for n in raw_names if n))
+        return ", ".join(unique_names) if unique_names else None
+
+    async def get_model(self) -> str | None:
+        host_info = await self.get_host_info()
+        if not host_info:
+            return None
+
+        cpu_model = host_info.get("p_model")
+        if isinstance(cpu_model, str):
+            cpu_model = " ".join(cpu_model.split()).strip()
+            if not cpu_model:
+                cpu_model = None
+        else:
+            cpu_model = None
+
+        coprocs = host_info.get("coprocs")
+        gpu_model = self._extract_gpu_model(coprocs)
+
+        if cpu_model and gpu_model:
+            return f"{cpu_model} | {gpu_model}"
+        if cpu_model:
+            return cpu_model
+        if gpu_model:
+            return gpu_model
         return None
 
     async def get_cc_status(self) -> dict:
