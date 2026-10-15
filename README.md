@@ -10,10 +10,10 @@ Features:
 * Start BOINC service
 * Hard and soft stop
 * Control the usage of GPU separately (if desired)
-* Sensors for *total tasks*, *running tasks*, *average progress rate* (%/h), *Total RAC* (credits/day) and *Total Credit* (with native LTS hourly/daily/weekly tracking)
+* Sensors for *total tasks*, *running tasks*, *completed tasks*, *failed tasks*, *average progress rate* (%/h), *Total RAC* (credits/day) and *Total Credit* (with native LTS hourly/daily/weekly tracking)
 * Native switches for BOINC Computations (Start / Soft Stop) and GPU (Start / Stop)
 * Native button for Immediate / Hard Stop
-* Per-project credit and RAC breakdown available in sensor attributes
+* Detailed project telemetry: per-project credit, RAC, completed tasks, and dedicated `failed_projects` breakdown on the Failed Tasks sensor
 * Control multiple BOINC servers (grouped into dedicated Home Assistant devices)
 
 # Installation
@@ -138,6 +138,11 @@ This project uses [pyboinc](https://github.com/nielstron/pyboinc/tree/dev/pyboin
 # Changelog
 
 ## 0.0.11
+* Added `Completed tasks` sensor (`sensor.<name>_completed_tasks`, unit `tasks`, state class `total_increasing` for Home Assistant LTS).
+* Added `Failed tasks` sensor (`sensor.<name>_failed_tasks`, unit `tasks`, state class `total_increasing` for Home Assistant LTS).
+* Added detailed failure breakdown to `Failed tasks` attributes (`failed_projects` listing only projects with errors, `failed_projects_count`, and `overall_success_rate`).
+* Added `completed_tasks` breakdown and overall success rate to `Completed tasks` attributes.
+* Extended `projects` telemetry dictionary with `completed_tasks` and `failed_tasks` counters.
 * Pointed documentation and issue tracker URLs to repository fork (`pziemniak/Boinc-Home-Assistant-Integration`).
 * Updated maintainers/codeowners to include both `@pziemniak` and `@SpuelMett`.
 

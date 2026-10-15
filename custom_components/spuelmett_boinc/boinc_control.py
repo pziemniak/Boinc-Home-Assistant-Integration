@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import logging
+from typing import Any
 
 from .pyboinc.pyboinc import init_rpc_client
 from .pyboinc.pyboinc.rpc_client import Mode
@@ -236,7 +237,31 @@ class BoincControl:
                 pass
         return int(round(total))
 
-    def get_projects_detail(self, projects) -> dict[str, dict[str, float]]:
+    def get_completed_tasks(self, projects) -> int:
+        if not projects or not isinstance(projects, list):
+            return 0
+        total = 0
+        for p in projects:
+            njobs = getattr(p, "njobs_success", 0) or 0
+            try:
+                total += int(njobs)
+            except (ValueError, TypeError):
+                pass
+        return total
+
+    def get_failed_tasks(self, projects) -> int:
+        if not projects or not isinstance(projects, list):
+            return 0
+        total = 0
+        for p in projects:
+            njobs = getattr(p, "njobs_error", 0) or 0
+            try:
+                total += int(njobs)
+            except (ValueError, TypeError):
+                pass
+        return total
+
+    def get_projects_detail(self, projects) -> dict[str, dict[str, Any]]:
         if not projects or not isinstance(projects, list):
             return {}
         details = {}
@@ -249,6 +274,8 @@ class BoincControl:
             )
             rac = getattr(p, "host_expavg_credit", 0.0) or 0.0
             credit = getattr(p, "host_total_credit", 0.0) or 0.0
+            njobs_success = getattr(p, "njobs_success", 0) or 0
+            njobs_error = getattr(p, "njobs_error", 0) or 0
             try:
                 rac_val = round(float(rac), 2)
             except (ValueError, TypeError):
@@ -257,9 +284,19 @@ class BoincControl:
                 credit_val = round(float(credit), 2)
             except (ValueError, TypeError):
                 credit_val = 0.0
+            try:
+                success_val = int(njobs_success)
+            except (ValueError, TypeError):
+                success_val = 0
+            try:
+                error_val = int(njobs_error)
+            except (ValueError, TypeError):
+                error_val = 0
             details[str(name)] = {
                 "rac": rac_val,
                 "total_credit": credit_val,
+                "completed_tasks": success_val,
+                "failed_tasks": error_val,
             }
         return details
 

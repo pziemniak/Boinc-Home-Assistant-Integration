@@ -45,6 +45,12 @@
             },
             "total_credit": {
                 "name": "Total credit"
+            },
+            "tasks_completed": {
+                "name": "Completed tasks"
+            },
+            "tasks_failed": {
+                "name": "Failed tasks"
             }
         },
         "switch": {

@@ -4,6 +4,8 @@ import logging
 from .const import (
     AVERAGE_PROGRESS_RATE,
     BOINC_MODE_AUTO,
+    COMPLETED_TASK_COUNT,
+    FAILED_TASK_COUNT,
     GPU_MODE,
     NAME,
     PROJECTS_DETAIL,
@@ -67,6 +69,8 @@ class BoincCoordinator(DataUpdateCoordinator):
         data[AVERAGE_PROGRESS_RATE] = self.boinc.average_progress_rate(results)
         data[TOTAL_RAC] = self.boinc.get_total_rac(projects)
         data[TOTAL_CREDIT] = self.boinc.get_total_credit(projects)
+        data[COMPLETED_TASK_COUNT] = self.boinc.get_completed_tasks(projects)
+        data[FAILED_TASK_COUNT] = self.boinc.get_failed_tasks(projects)
         data[PROJECTS_DETAIL] = self.boinc.get_projects_detail(projects)
 
         data[TASK_MODE] = cc_status.get(TASK_MODE, BOINC_MODE_AUTO)

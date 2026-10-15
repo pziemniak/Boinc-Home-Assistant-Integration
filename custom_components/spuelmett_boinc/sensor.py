@@ -5,7 +5,9 @@ from typing import Any
 from .const import (
     AVERAGE_PROGRESS_RATE,
     BOINC_IP,
+    COMPLETED_TASK_COUNT,
     DOMAIN,
+    FAILED_TASK_COUNT,
     PROJECTS_DETAIL,
     RUNNING_TASK_COUNT,
     TOTAL_CREDIT,
@@ -69,6 +71,24 @@ SENSORS: tuple[RunningTaskEntityDescription, ...] = (
         unique_id="total_credit",
         native_unit_of_measurement="credits",
         icon="mdi:counter",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=0,
+    ),
+    RunningTaskEntityDescription(
+        key=COMPLETED_TASK_COUNT,
+        translation_key="tasks_completed",
+        unique_id="tasks_completed",
+        native_unit_of_measurement="tasks",
+        icon="mdi:check-circle-outline",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=0,
+    ),
+    RunningTaskEntityDescription(
+        key=FAILED_TASK_COUNT,
+        translation_key="tasks_failed",
+        unique_id="tasks_failed",
+        native_unit_of_measurement="tasks",
+        icon="mdi:alert-circle-outline",
         state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
     ),
@@ -144,12 +164,56 @@ class BoincSensor(CoordinatorEntity[BoincCoordinator], SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes."""
+        if not self.coordinator.data:
+            return None
+
         if self.entity_description.key in (TOTAL_RAC, TOTAL_CREDIT):
-            projects = self.coordinator.data.get(PROJECTS_DETAIL, {}) if self.coordinator.data else {}
+            projects = self.coordinator.data.get(PROJECTS_DETAIL, {})
             return {
                 "projects": projects,
                 "project_count": len(projects),
             }
+
+        if self.entity_description.key == FAILED_TASK_COUNT:
+            projects = self.coordinator.data.get(PROJECTS_DETAIL, {})
+            failed_projects = {}
+            for proj_name, details in projects.items():
+                err = details.get("failed_tasks", 0)
+                succ = details.get("completed_tasks", 0)
+                if err > 0:
+                    total_proj_tasks = succ + err
+                    failure_pct = round((err / total_proj_tasks) * 100, 2) if total_proj_tasks > 0 else 100.0
+                    failed_projects[proj_name] = {
+                        "failed_tasks": err,
+                        "completed_tasks": succ,
+                        "failure_rate": f"{failure_pct}%",
+                    }
+            total_succ = self.coordinator.data.get(COMPLETED_TASK_COUNT, 0) or 0
+            total_err = self.coordinator.data.get(FAILED_TASK_COUNT, 0) or 0
+            total_tasks = total_succ + total_err
+            success_rate = round((total_succ / total_tasks) * 100, 2) if total_tasks > 0 else 100.0
+            return {
+                "failed_projects": failed_projects,
+                "failed_projects_count": len(failed_projects),
+                "overall_success_rate": f"{success_rate}%",
+            }
+
+        if self.entity_description.key == COMPLETED_TASK_COUNT:
+            projects = self.coordinator.data.get(PROJECTS_DETAIL, {})
+            completed_projects = {
+                proj_name: details.get("completed_tasks", 0)
+                for proj_name, details in projects.items()
+            }
+            total_succ = self.coordinator.data.get(COMPLETED_TASK_COUNT, 0) or 0
+            total_err = self.coordinator.data.get(FAILED_TASK_COUNT, 0) or 0
+            total_tasks = total_succ + total_err
+            success_rate = round((total_succ / total_tasks) * 100, 2) if total_tasks > 0 else 100.0
+            return {
+                "projects": completed_projects,
+                "project_count": len(completed_projects),
+                "overall_success_rate": f"{success_rate}%",
+            }
+
         return None
 
     @callback
