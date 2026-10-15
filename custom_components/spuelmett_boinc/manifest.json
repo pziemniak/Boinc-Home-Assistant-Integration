@@ -7,11 +7,11 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/SpuelMett/Boinc-Home-Assistant-Integration",
-  "issue_tracker": "https://github.com/SpuelMett/Boinc-Home-Assistant-Integration/issues",
   "homekit": {},
   "iot_class": "assumed_state",
+  "issue_tracker": "https://github.com/SpuelMett/Boinc-Home-Assistant-Integration/issues",
   "requirements": [],
   "ssdp": [],
-  "zeroconf": [],
-  "version": "0.0.9"
+  "version": "0.0.9",
+  "zeroconf": []
 }

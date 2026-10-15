@@ -1,0 +1,4 @@
+# Services are registered dynamically per host with the suffix "_<host_name>":
+# start_boinc_*, stop_boinc_*, soft_stop_boinc_*, soft_stop_check_*, start_gpu_*, stop_gpu_*
+# Because names depend on the configured host, they cannot be listed statically.
+{}
