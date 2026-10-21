@@ -73,10 +73,26 @@ class BoincCoordinator(DataUpdateCoordinator):
             results = await self.boinc.get_results()
             projects = await self.boinc.get_projects()
             cc_status = await self.boinc.get_cc_status()
-        except (TimeoutError, OSError, ConnectionError, BOINCClientError) as err:
+        except (
+            TimeoutError,
+            OSError,
+            ConnectionError,
+            EOFError,
+            BOINCClientError,
+        ) as err:
             await self.boinc.disconnect()
             raise UpdateFailed(
                 f"BOINC host {self.boinc.host} is unreachable: {err}"
+            ) from err
+        except Exception as err:
+            await self.boinc.disconnect()
+            _LOGGER.exception(
+                "Unexpected error communicating with BOINC host %s: %s",
+                self.boinc.host,
+                err,
+            )
+            raise UpdateFailed(
+                f"Unexpected error communicating with BOINC host {self.boinc.host}: {err}"
             ) from err
 
         data = {}

@@ -91,12 +91,18 @@ class _RPCClientRaw:
             assert resp_e.tag == REPLY_TAG
         except AssertionError:
             raise ConnectionError("Got invalid response from {}".format(self.host))
+        if len(resp_e) == 0:
+            raise ConnectionError(f"Empty reply from {self.host}")
         return resp_e[0]
 
     async def request(self, request: ET.Element):
         """
         Send request to server and return reply
         """
-        await self.send(request)
-        return await self.receive()
+        try:
+            await self.send(request)
+            return await self.receive()
+        except Exception:
+            await self.close()
+            raise
 

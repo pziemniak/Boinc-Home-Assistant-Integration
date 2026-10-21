@@ -79,7 +79,11 @@ class RPCClient:
         return (await self._request(auth2)).tag == Tag.AUTHORIZED
 
     async def _request(self, req: ET.Element):
-        return await self._raw_client.request(req)
+        try:
+            return await self._raw_client.request(req)
+        except Exception:
+            self.connected = False
+            raise
 
     async def _request_auth(self, req: ET.Element):
         """
@@ -108,7 +112,12 @@ class RPCClient:
 
     async def get_cc_status(self):
         req = ET.Element(Tag.GET_CC_STATUS)
-        return parse_generic(await self._request(req))
+        rep = await self._request(req)
+        if rep.tag == Tag.UNAUTHORIZED:
+            raise BOINCClientError("Unauthorized")
+        if rep.tag == Tag.ERROR:
+            raise BOINCClientError(rep.text or "Error")
+        return parse_generic(rep)
 
     async def get_disk_usage(self):
         req = ET.Element(Tag.GET_DISK_USAGE)
@@ -143,13 +152,25 @@ class RPCClient:
 
     async def get_project_status(self):
         req = ET.Element(Tag.GET_PROJECT_STATUS)
-        return [Project(**parse_generic(c)) for c in await self._request(req)]
+        rep = await self._request(req)
+        if rep.tag == Tag.UNAUTHORIZED:
+            raise BOINCClientError("Unauthorized")
+        if rep.tag == Tag.ERROR:
+            raise BOINCClientError(rep.text or "Error")
+        if rep.tag != Tag.PROJECTS:
+            raise BOINCClientError(f"Unexpected response tag for get_project_status: {rep.tag}")
+        return [Project(**parse_generic(c)) for c in rep]
 
     async def get_results(self, active_only=False):
         req = ET.Element(Tag.GET_RESULTS)
         if active_only:
             ET.SubElement(req, Tag.ACTIVE_ONLY)
-        return parse_generic(await self._request(req))
+        rep = await self._request(req)
+        if rep.tag == Tag.UNAUTHORIZED:
+            raise BOINCClientError("Unauthorized")
+        if rep.tag == Tag.ERROR:
+            raise BOINCClientError(rep.text or "Error")
+        return parse_generic(rep)
 
     ######################################################################
     # Controlling the server

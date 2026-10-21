@@ -54,6 +54,8 @@ class BoincControl:
     async def connect(self):
         if self.rpc_client is not None and getattr(self.rpc_client, "connected", False):
             return
+        if self.rpc_client is not None:
+            await self.disconnect()
         client = await init_rpc_client(self.host, self.password)
         try:
             if not await client.authorize():
@@ -195,7 +197,11 @@ class BoincControl:
         await self.connect()
 
         # get results
-        return await self.rpc_client.get_results()
+        try:
+            return await self.rpc_client.get_results()
+        except Exception:
+            await self.disconnect()
+            raise
 
     def get_running_task_count(self, results):
         if not isinstance(results, list):
@@ -243,11 +249,9 @@ class BoincControl:
         await self.connect()
         try:
             return await self.rpc_client.get_project_status()
-        except (TimeoutError, OSError, ConnectionError):
+        except Exception:
+            await self.disconnect()
             raise
-        except Exception as err:
-            _LOGGER.warning("Could not fetch project status from BOINC host %s: %s", self.host, err)
-            return []
 
     def get_total_rac(self, projects) -> float:
         if not projects or not isinstance(projects, list):
@@ -397,8 +401,7 @@ class BoincControl:
             res = await self.rpc_client.get_cc_status()
             if isinstance(res, dict):
                 return res
-        except (TimeoutError, OSError, ConnectionError):
+            return {}
+        except Exception:
+            await self.disconnect()
             raise
-        except Exception as err:
-            _LOGGER.debug("Could not fetch cc_status: %s", err)
-        return {}
